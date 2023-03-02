@@ -1,0 +1,230 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "sqlite"
+    // NOTE: When using postgresql, mysql or sqlserver, uncomment the @db.Text annotations in model Account below
+    // Further reading:
+    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
+    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
+    url      = env("DATABASE_URL")
+}
+
+model Example {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    updatedAt DateTime @updatedAt
+}
+
+// Necessary for Next auth
+model Account {
+    id                String  @id @default(cuid())
+    userId            String
+    type              String
+    provider          String
+    providerAccountId String
+    refresh_token     String? // @db.Text
+    access_token      String? // @db.Text
+    expires_at        Int?
+    token_type        String?
+    scope             String?
+    id_token          String? // @db.Text
+    session_state     String?
+    user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+    @@unique([provider, providerAccountId])
+}
+
+model Session {
+    id           String   @id @default(cuid())
+    sessionToken String   @unique
+    userId       String
+    expires      DateTime
+    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model User {
+    id            String    @id @default(cuid())
+    name          String?
+    email         String?   @unique
+    emailVerified DateTime?
+    password        String?
+    image         String?
+    accounts      Account[]
+    sessions      Session[]
+    orders    Order[]
+}
+
+model VerificationToken {
+    identifier String
+    token      String   @unique
+    expires    DateTime
+
+    @@unique([identifier, token])
+}
+model Site {
+  id         String    @id @default(uuid())
+  site       String
+  alias      String    @unique
+  note       String
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @default(now()) @updatedAt
+  category   Category? @relation(fields: [categoryId], references: [id], onUpdate: Cascade, onDelete: SetNull)
+  categoryId String?
+  logs       Log[]
+  assets     Asset[]
+  loops      Loop[]
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  category    String   @unique
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @default(now()) @updatedAt
+  sites       Site[]
+  assets      Asset[]
+}
+
+model Log {
+  id        String   @id @default(uuid())
+  log       String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  site      Site     @relation(fields: [siteId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  siteId    String
+}
+
+model MeasuredVariable {
+  id          String           @id @default(uuid())
+  variablex   String           @unique
+  alias       String           @unique
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
+  instruments InstrumentType[]
+  loop        Loop[]
+}
+
+model InstrumentFunction {
+  id          String           @id @default(uuid())
+  functionx   String           @unique
+  alias       String           @unique
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @default(now()) @updatedAt
+  instruments InstrumentType[]
+}
+
+model Manufacturer {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  note      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @default(now()) @updatedAt
+  models    Model[]
+}
+
+model Model {
+  id             String        @id @default(uuid())
+  model          String?       @unique
+  serialno       String?
+  note           String?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @default(now()) @updatedAt
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  manufacturerId String?
+  assets         Asset[]
+}
+
+model Asset {
+  id          String    @id @default(uuid())
+  description String
+  note        String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @default(now()) @updatedAt
+  category    Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  categoryId  String?
+  site        Site?     @relation(fields: [siteId], references: [id])
+  siteId      String?
+  model       Model?    @relation(fields: [modelId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  modelId     String?
+}
+
+model InstrumentType {
+  id             String             @id @default(uuid())
+  type           String
+  description    String?
+  mv             MeasuredVariable   @relation(fields: [mvId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  mvId           String
+  instfunction   InstrumentFunction @relation(fields: [instfunctionId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  instfunctionId String
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @default(now()) @updatedAt
+
+  tags LoopTag[]
+}
+
+model Loop {
+  id        String           @id @default(uuid())
+  loop      String           @unique
+  numberic  Int
+  service   String
+  mv        MeasuredVariable @relation(fields: [mvId], references: [id])
+  mvId      String
+  site      Site             @relation(fields: [siteId], references: [id])
+  siteId    String
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @default(now()) @updatedAt
+
+  tags LoopTag[]
+}
+
+model LoopTag {
+  id        String         @id @default(uuid())
+  tag       String         @unique
+  order     Int            @default(0)
+  loop      Loop           @relation(fields: [loopId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  loopId    String
+  type      InstrumentType @relation(fields: [typeId], references: [id])
+  typeId    String
+  note      String?
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @default(now()) @updatedAt
+}
+
+model Product {
+  id    String      @id @default(uuid())
+  name  String
+  description String?
+  price Float
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @default(now()) @updatedAt
+
+  items OrderItem[]
+}
+
+model Order {
+  id        String      @id @default(uuid())
+  subtotal  Float
+  taxes     Float
+  total     Float
+  user   User     @relation(fields: [userId], references: [id])
+  userId String
+  items     OrderItem[]
+  @@index([userId])
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  quantity  Int
+  price     Float
+  order     Order   @relation(fields: [orderId], references: [id])
+  orderId   String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+  @@index([orderId])
+  @@index([productId])
+}
